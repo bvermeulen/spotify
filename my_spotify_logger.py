@@ -52,23 +52,23 @@ def print_track(track):
 def main():
     tracks_log = read_track_logfile()
     track_id = None
+    valid_track = False
 
     while True:
         new_track = spotify.current_user_playing_track()
+        valid_track = (
+            new_track and new_track['item'] and track_id != new_track['item']['id']
+        )
 
-        if new_track and track_id != new_track['item']['id']:
+        if valid_track:
             track_id = new_track['item']['id']
-            track_name = new_track['item']['name']
-            track_artist = new_track['item']['artists'][0]['name']
-            track_played_at = datetime.datetime.now()
-
             track_record = TrackRecord(
-                played_at=track_played_at.strftime("%Y-%B-%d %H:%M:%S"),
+                played_at=datetime.datetime.now().strftime("%Y-%B-%d %H:%M:%S"),
                 id=track_id,
-                artist=track_artist,
-                name=track_name,
+                artist=new_track['item']['artists'][0]['name'],
+                name=new_track['item']['name'],
             )
-            # print_track(track_record)
+            print_track(track_record)
             tracks_log['tracks'].append(track_record.as_dict())
             update_track_logfile(tracks_log)
 
