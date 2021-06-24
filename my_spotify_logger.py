@@ -52,7 +52,6 @@ def print_track(track):
 def main():
     tracks_log = read_track_logfile()
     track_id = None
-    valid_track = False
 
     while True:
         new_track = spotify.current_user_playing_track()
