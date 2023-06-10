@@ -68,26 +68,17 @@ def main():
     track_id = None
 
     while True:
-        try:
-            new_track = spotify.current_user_playing_track()
-
-        except Exception as e:
-            print(f'Exception occured at {time.ctime()}: {e}')
-            time.sleep(60)
-            continue
-
+        new_track = get_track_update()
         valid_track = (
             new_track and new_track['item'] and track_id != new_track['item']['id']
         )
-
         if valid_track:
             track_id = new_track['item']['id']
-            time.sleep(20)
+            time.sleep(15)
             check_track = get_track_update()
             track_not_skipped = (
                 check_track and check_track['item'] and track_id == check_track['item']['id']
             )
-
         if valid_track and track_not_skipped:
             track_name = new_track['item']['name']
             track_artist = new_track['item']['artists'][0]['name']
@@ -99,7 +90,7 @@ def main():
                 artist=track_artist,
                 name=track_name,
             )
-            print_track(track_record)
+            # print_track(track_record)
             tracks_log['tracks'].append(track_record.as_dict())
             update_track_logfile(tracks_log)
 
