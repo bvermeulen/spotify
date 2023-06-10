@@ -51,6 +51,18 @@ def print_track(track):
           f'artist: {track.artist}, {track.name}')
 
 
+def get_track_update():
+    track = None
+    try:
+        track = spotify.current_user_playing_track()
+
+    except Exception as e:
+        print(f'Exception occured at {time.ctime()}: {e}')
+        time.sleep(60)
+
+    return track
+
+
 def main():
     tracks_log = read_track_logfile()
     track_id = None
@@ -70,6 +82,13 @@ def main():
 
         if valid_track:
             track_id = new_track['item']['id']
+            time.sleep(20)
+            check_track = get_track_update()
+            track_not_skipped = (
+                check_track and check_track['item'] and track_id == check_track['item']['id']
+            )
+
+        if valid_track and track_not_skipped:
             track_name = new_track['item']['name']
             track_artist = new_track['item']['artists'][0]['name']
             track_played_at = datetime.datetime.now()
@@ -85,6 +104,7 @@ def main():
             update_track_logfile(tracks_log)
 
         time.sleep(TIME_DELAY)
+
 
 if __name__ == '__main__':
     main()
