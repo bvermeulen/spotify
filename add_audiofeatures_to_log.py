@@ -1,6 +1,6 @@
 from dataclasses import dataclass, asdict
-import time
 import datetime
+import time
 from pathlib import Path
 import json
 from decouple import config
@@ -47,8 +47,9 @@ time_signatur: A measure from 0.0 to 1.0 describing the musical positiveness con
   sound more negative (e.g. sad, depressed, angry).
 """
 TRACK_LOGFILE = Path("logs/track_log.json")
-TIME_DELAY = 5
-MINIMUM_PLAY_TIME = 20
+MODIFIED_TRACK_LOGFILE = Path("logs/track_log_modified.json")
+BATCH_LENGTH = 100
+DELAY = 30
 SCOPE = "user-read-currently-playing"
 SPOTIFY_CLIENT_ID = config("SPOTIFY_CLIENT_ID")
 SPOTIFY_CLIENT_SECRET = config("SPOTIFY_CLIENT_SECRET")
@@ -63,7 +64,7 @@ spotify_authorization = SpotifyOAuth(
     # open_browser=False,
 )
 spotify = spotipy.Spotify(auth_manager=spotify_authorization)
-
+print()
 
 @dataclass
 class TrackRecord:
@@ -95,7 +96,7 @@ def read_track_logfile():
 
 
 def update_track_logfile(tracks_log):
-    with open(TRACK_LOGFILE, "w") as json_file:
+    with open(MODIFIED_TRACK_LOGFILE, "w") as json_file:
         json.dump(tracks_log, json_file)
 
 
@@ -103,86 +104,88 @@ def print_track(track):
     print(f"{track = }")
 
 
-def get_track_update():
-    track = None
+def get_audio_features(tracks: list) -> list:
+    print(f'"{len(tracks)=}')
     try:
-        track = spotify.current_user_playing_track()
+        return spotify.audio_features(tracks=tracks)
 
     except Exception as e:
-        print(f"Exception occured at {time.ctime()}: {e}")
-        time.sleep(60)
-
-    return track
-
-
-def get_track_audio_features(track: str) -> dict:
-    try:
-        return spotify.audio_features(tracks=[track])[0]
-
-    except Exception as e:
-        print(f"Exception occured at {time.ctime()}: {e}")
-        time.sleep(60)
-        return None
+        print(f"get_track_audio_features, exception {e}, exit the program ...")
+        exit()
 
 
 def main():
     tracks_log = read_track_logfile()
-    track_id = None
+    tracks = tracks_log["tracks"]
+    modified_log = {}
+    modified_log["spotify_account"] = tracks_log["spotify_account"]
+    modified_log["tracks"] = []
+    batch = 1
+    nr_tracks = len(tracks)
+    start = 0
+    end = min(start + BATCH_LENGTH, nr_tracks)
+    # work in batches of BATCH_LENGTH
+    while end <= nr_tracks:
 
-    while True:
-        track = get_track_update()
-        new_track = track and track["item"] and track_id != track["item"]["id"]
-
-        # if there is a new_track or no track is playing then log the previous
-        # track only if played for 20s or more
-        if (new_track and track_id) or (track is None and track_id):
-            if track_id:
-                play_time = (datetime.datetime.now() - track_played_at).total_seconds()
-
-            else:
-                play_time = 0
-
-            if play_time > MINIMUM_PLAY_TIME:
-                track_record.play_time = (
-                    f"{datetime.timedelta(seconds=round(play_time, 0))}"
+        if not tracks[start].get("play_time") or not tracks[start].get("acousticness"):
+            # only call for audio features if the first one in the batch does not have these
+            tracks_id = [track["id"] for track in tracks[start:end]]
+            tracks_af = get_audio_features(tracks_id)
+            for index, af in enumerate(tracks_af, start):
+                play_time = tracks[index].get(
+                    "play_time",
+                    f"{datetime.timedelta(seconds=round(af["duration_ms"] * 0.001, 0))}",
                 )
-                print_track(track_record)
-                tracks_log["tracks"].append(track_record.as_dict())
-                update_track_logfile(tracks_log)
+                acousticness = tracks[index].get("acousticness", af["acousticness"])
+                danceability = tracks[index].get("danceability", af["danceability"])
+                energy = tracks[index].get("energy", af["energy"])
+                instrumentalness = tracks[index].get(
+                    "instrumentalness", af["instrumentalness"]
+                )
+                key = tracks[index].get("key", af["key"])
+                liveness = tracks[index].get("liveness", af["liveness"])
+                loudness = tracks[index].get("loudness", af["loudness"])
+                mode = tracks[index].get("mode", af["mode"])
+                speechiness = tracks[index].get("speechiness", af["speechiness"])
+                tempo = tracks[index].get("tempo", af["tempo"])
+                time_signature = tracks[index].get(
+                    "time_signature", af["time_signature"]
+                )
+                valence = tracks[index].get("valence", af["valence"])
 
-        # update track attributes
-        if new_track:
-            track_record = TrackRecord(*[None] * 17)
-            track_id = track["item"]["id"]
-            track_played_at = datetime.datetime.now()
-            track_record.id = track_id
-            track_record.played_at = track_played_at.strftime("%Y-%B-%d %H:%M:%S")
-            track_record.artist = track["item"]["artists"][0]["name"]
-            track_record.name = track["item"]["name"]
-            track_record.play_time = ""
+                modified_track_record = TrackRecord(
+                    id=tracks[index]["id"],
+                    played_at=tracks[index]["played_at"],
+                    artist=tracks[index]["artist"],
+                    name=tracks[index]["name"],
+                    play_time=tracks[index].get("play_time", play_time),
+                    acousticness=tracks[index].get("accousticness", acousticness),
+                    danceability=tracks[index].get("danceability", danceability),
+                    energy=tracks[index].get("energy", energy),
+                    instrumentalness=tracks[index].get(
+                        "instrumentalness", instrumentalness
+                    ),
+                    key=tracks[index].get("key", key),
+                    liveness=tracks[index].get("liveness", liveness),
+                    loudness=tracks[index].get("loudness", loudness),
+                    mode=tracks[index].get("mode", mode),
+                    speechiness=tracks[index].get("speechiness", speechiness),
+                    tempo=tracks[index].get("tempo", tempo),
+                    time_signature=tracks[index].get("time_signature", time_signature),
+                    valence=tracks[index].get("valence", valence),
+                )
+                modified_log["tracks"].append(modified_track_record.as_dict())
+            time.sleep(1)
+        else:
+            for index in range(start, end):
+                modified_log["tracks"].append(tracks[index])
 
-            af = get_track_audio_features(track_id)
-            if af is None:
-                continue
+        print(f"Processed batch: {batch:3} ({start:6}: {end:6})", end="\r")
+        start += BATCH_LENGTH
+        end = min(start + BATCH_LENGTH, nr_tracks)
+        batch += 1
 
-            else:
-                track_record.acousticness = af["acousticness"]
-                track_record.danceability = af["danceability"]
-                track_record.energy = af["energy"]
-                track_record.instrumentalness = af["instrumentalness"]
-                track_record.key = af["key"]
-                track_record.liveness = af["liveness"]
-                track_record.loudness = af["loudness"]
-                track_record.mode = af["mode"]
-                track_record.speechiness = af["speechiness"]
-                track_record.tempo = af["tempo"]
-                track_record.time_signature = af["time_signature"]
-                track_record.valence = af["valence"]
-
-        if track is None:
-            track_id = None
-
-        time.sleep(TIME_DELAY)
+    update_track_logfile(modified_log)
 
 
 if __name__ == "__main__":
