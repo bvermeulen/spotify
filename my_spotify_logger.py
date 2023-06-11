@@ -67,7 +67,6 @@ def get_track_update():
 def main():
     tracks_log = read_track_logfile()
     track_id = None
-    track_played_at = None
 
     while True:
         track = get_track_update()
@@ -78,7 +77,7 @@ def main():
         # if there is a new_track or no track is playing then log the previous
         # track only if played for 20s or more
         if new_track or (track is None and track_id):
-            if track_played_at:
+            if track_id:
                 play_time = (datetime.datetime.now() - track_played_at).total_seconds()
 
             else:
@@ -105,7 +104,6 @@ def main():
 
         if track is None:
             track_id = None
-            track_played_at = None
 
         time.sleep(TIME_DELAY)
 
