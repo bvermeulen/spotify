@@ -9,6 +9,7 @@ from spotipy.oauth2 import SpotifyOAuth
 
 TRACK_LOGFILE= Path('logs/track_log.json')
 TIME_DELAY = 5
+MINIMUM_PLAY_TIME = 20
 SCOPE = 'user-read-currently-playing'
 SPOTIFY_CLIENT_ID = config('SPOTIFY_CLIENT_ID')
 SPOTIFY_CLIENT_SECRET = config('SPOTIFY_CLIENT_SECRET')
@@ -31,6 +32,7 @@ class TrackRecord():
     name: str
     id: int
     artist: str
+    play_time: str
 
     def as_dict(self):
         return asdict(self)
@@ -47,8 +49,7 @@ def update_track_logfile(tracks_log):
 
 
 def print_track(track):
-    print(f'{track.played_at}, id: {track.id}\n'
-          f'artist: {track.artist}, {track.name}')
+    print(f'{track = }')
 
 
 def get_track_update():
@@ -66,33 +67,45 @@ def get_track_update():
 def main():
     tracks_log = read_track_logfile()
     track_id = None
+    track_played_at = None
 
     while True:
-        new_track = get_track_update()
-        valid_track = (
-            new_track and new_track['item'] and track_id != new_track['item']['id']
+        track = get_track_update()
+        new_track = (
+            track and track['item'] and track_id != track['item']['id']
         )
-        if valid_track:
-            track_id = new_track['item']['id']
-            time.sleep(15)
-            check_track = get_track_update()
-            track_not_skipped = (
-                check_track and check_track['item'] and track_id == check_track['item']['id']
-            )
-        if valid_track and track_not_skipped:
-            track_name = new_track['item']['name']
-            track_artist = new_track['item']['artists'][0]['name']
-            track_played_at = datetime.datetime.now()
 
-            track_record = TrackRecord(
-                played_at=track_played_at.strftime("%Y-%B-%d %H:%M:%S"),
-                id=track_id,
-                artist=track_artist,
-                name=track_name,
-            )
-            # print_track(track_record)
-            tracks_log['tracks'].append(track_record.as_dict())
-            update_track_logfile(tracks_log)
+        # if there is a new_track or no track is playing then log the previous
+        # track only if played for 20s or more
+        if new_track or (track is None and track_id):
+            if track_played_at:
+                play_time = (datetime.datetime.now() - track_played_at).total_seconds()
+
+            else:
+                play_time = 0
+
+            if play_time > MINIMUM_PLAY_TIME:
+                track_record = TrackRecord(
+                    played_at=track_played_at.strftime("%Y-%B-%d %H:%M:%S"),
+                    id=track_id,
+                    artist=track_artist,
+                    name=track_name,
+                    play_time=datetime.datetime.utcfromtimestamp(play_time).strftime('%H:%M:%S')
+                )
+                print_track(track_record)
+                tracks_log['tracks'].append(track_record.as_dict())
+                update_track_logfile(tracks_log)
+
+        # update track attributes
+        if new_track:
+            track_id = track['item']['id']
+            track_played_at = datetime.datetime.now()
+            track_name = track['item']['name']
+            track_artist = track['item']['artists'][0]['name']
+
+        if track is None:
+            track_id = None
+            track_played_at = None
 
         time.sleep(TIME_DELAY)
 

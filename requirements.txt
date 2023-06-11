@@ -1,8 +1,10 @@
-certifi==2021.5.30
-chardet==4.0.0
-idna==2.10
-python-decouple==3.4
-requests==2.25.1
+certifi==2023.5.7
+chardet==5.1.0
+charset-normalizer==3.1.0
+idna==3.4
+python-decouple==3.8
+redis==4.5.5
+requests==2.31.0
 six==1.16.0
-spotipy==2.18.0
-urllib3==1.26.5
+spotipy==2.23.0
+urllib3==2.0.3
