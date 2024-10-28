@@ -134,14 +134,9 @@ def main():
         new_track = track and track["item"] and track_id != track["item"]["id"]
 
         # if there is a new_track or no track is playing then log the previous
-        # track only if played for 20s or more
+        # track only if played for more than MINIMUM_PLAY_TIME
         if (new_track and track_id) or (track is None and track_id):
-            if track_id:
-                play_time = (datetime.datetime.now() - track_played_at).total_seconds()
-
-            else:
-                play_time = 0
-
+            play_time = (datetime.datetime.now() - track_played_at).total_seconds()
             if play_time > MINIMUM_PLAY_TIME:
                 track_record.play_time = (
                     f"{datetime.timedelta(seconds=round(play_time, 0))}"
