@@ -177,20 +177,20 @@ def main():
                 )
                 modified_log["tracks"].append(modified_track_record.as_dict())
 
-            update_track_logfile(modified_log)
             time.sleep(2)
 
         else:
             for index in range(start, end):
                 modified_log["tracks"].append(tracks[index])
 
-
         print(f"Processed batch: {batch:3} ({start:6}: {end:6})", end="\r")
+        update_track_logfile(modified_log)
         start += BATCH_LENGTH
         end = min(start + BATCH_LENGTH, nr_tracks)
         batch += 1
 
-    print(f'\ncompleted {batch - 1} batches, {nr_tracks} tracks')
+    print(f"\ncompleted {batch - 1} batches, {nr_tracks} tracks")
+
 
 if __name__ == "__main__":
     main()
