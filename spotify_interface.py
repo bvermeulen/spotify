@@ -167,7 +167,7 @@ class SpotifyDb:
             db_df = df
 
         db_df.drop_duplicates(subset=["track_id"], keep="first", inplace=True)
-        with self.engine.being() as conn:
+        with self.engine.connect() as conn:
             db_df.to_sql(self.track_info, con=conn, if_exists="append", index=False)
 
     def extract_track_info(self, track_id: str) -> dict:
